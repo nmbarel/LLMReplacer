@@ -19,3 +19,15 @@ def request(flow: http.HTTPFlow) -> None:
         promptendIndex = promptstartIndex + requestContent[promptstartIndex:].find("\\\",0,null,null,null,null") # this always comes after the prompt
         newContent = requestContent[:promptstartIndex] + prompt + requestContent[promptendIndex:]
         flow.request.urlencoded_form["f.req"] = newContent
+
+def websocket_message(flow: http.HTTPFlow) -> None:
+    assert flow.websocket is not None
+    message = flow.websocket.messages[-1]
+
+    if message.from_client: # TODO: add check for bing copilot url
+        ctx.log.info(message.content)
+        if b"\"text\"" in message.content:
+            suffix = message.content[-1]
+            de = json.loads(message.content[:-1].decode())
+            de["arguments"][0]["message"]["text"] = prompt
+            message.content = json.dumps(de).encode() + suffix.to_bytes(1, "big")
